@@ -37,18 +37,18 @@ function old_get_price () {
     RAW_PRICE=$(curl -s "${ELEC_PRICE_URL}")
   fi
 
-  PRICE=$(echo ${RAW_PRICE} | jq -r '.[0] | .price')
-  UPDOWN=$(echo ${RAW_PRICE} | jq -r '.[0] | .updown ')
+  PRICE=$(echo "${RAW_PRICE}" | jq -r '.[0] | .price')
+  UPDOWN=$(echo "${RAW_PRICE}" | jq -r '.[0] | .updown ')
   [[ ${UPDOWN} -gt 0 ]] && UPDOWN="+${UPDOWN}"  # add a plus sign if positive
 
   # return result
-  printf "%s %s" ${PRICE} ${UPDOWN}
+  printf "%s %s" "${PRICE}" "${UPDOWN}"
 }
 
 function main () {
   while true;
   do
-    printf "\r\n[%s] %s %s" "$(date '+%m/%d %T')" "$(new_get_price)" "$(fake_info)";
+    printf "\r\n[%s] %s %s" "$(date '+%m/%d %T')" "$(get_price)" "$(fake_info)";
     sleep ${REQUEST_INTERVAL} ;
   done;
 }
