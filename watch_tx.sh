@@ -56,7 +56,7 @@ function get_day_price () {
     low_price=${raw_low_price%.*}
     price_diff=$((last_price - ref_price))
     [[ ${price_diff} -gt 0 ]] && price_diff="+${price_diff}"  # add a plus sign if positive
-    printf "%s %s (%s, %s)" "${last_price}" "${price_diff}" "${low_price}" "${high_price}" 
+    printf "%s %s (%s, %s)" "${last_price}" "${price_diff}" "$((last_price-low_price))" "$((high_price-last_price))" 
 }
 
 function show_string_on_market_close () {
@@ -90,7 +90,7 @@ function main () {
 # ---- misc ----
 function show_version () {
     command -v sha256sum 1>/dev/null && hash_256=$(sha256sum "${SCRIPT_DIR}/$0" | awk '{print $1}')
-    echo "version: 0.3 ; SHA256: ${hash_256}"
+    echo "version: 0.4 ; SHA256: ${hash_256}"
 }
 
 # parse param
