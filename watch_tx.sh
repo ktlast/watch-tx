@@ -48,11 +48,15 @@ function get_day_price () {
     quote=$(curl -s -H 'Host: mis.taifex.com.tw' -H 'Content-Type: application/json;charset=UTF-8' -XPOST 'https://mis.taifex.com.tw/futures/api/getChartData1M' -d '{"SymbolID": "TXF'"${month_code}"'4-F"}' | jq -r '.RtData.Quote')
     raw_last_price=$(echo "${quote}" | jq -r '.CLastPrice')
     raw_ref_price=$(echo "${quote}" | jq -r '.CRefPrice')
+    raw_high_price=$(echo "${quote}" | jq -r '.CHighPrice')
+    raw_low_price=$(echo "${quote}" | jq -r '.CLowPrice')
     last_price=${raw_last_price%.*}
     ref_price=${raw_ref_price%.*}
+    high_price=${raw_high_price%.*}
+    low_price=${raw_low_price%.*}
     price_diff=$((last_price - ref_price))
     [[ ${price_diff} -gt 0 ]] && price_diff="+${price_diff}"  # add a plus sign if positive
-    printf "%s %s" "${last_price}" "${price_diff}"
+    printf "%s %s (%s, %s)" "${last_price}" "${price_diff}" "${low_price}" "${high_price}" 
 }
 
 function show_string_on_market_close () {
@@ -86,7 +90,7 @@ function main () {
 # ---- misc ----
 function show_version () {
     command -v sha256sum 1>/dev/null && hash_256=$(sha256sum "${SCRIPT_DIR}/$0" | awk '{print $1}')
-    echo "version: 0.2 ; SHA256: ${hash_256}"
+    echo "version: 0.3 ; SHA256: ${hash_256}"
 }
 
 # parse param
