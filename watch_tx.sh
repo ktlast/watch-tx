@@ -42,7 +42,9 @@ function is_night_market_open () {
 
 
 function get_day_price () {
-    quote=$(curl -s -H 'Host: mis.taifex.com.tw' -H 'Content-Type: application/json;charset=UTF-8' -XPOST 'https://mis.taifex.com.tw/futures/api/getChartData1M' -d '{"SymbolID": "TXFD'"$(date +%-m)"'-F"}' | jq -r '.RtData.Quote')
+    month_to_ascii_code=$(printf "%s" "\x$(( 41+$(date +%-m) ))")
+    month_code=$(printf "%b" "${month_to_ascii_code}")
+    quote=$(curl -s -H 'Host: mis.taifex.com.tw' -H 'Content-Type: application/json;charset=UTF-8' -XPOST 'https://mis.taifex.com.tw/futures/api/getChartData1M' -d '{"SymbolID": "TXF'"${month_code}"'4-F"}' | jq -r '.RtData.Quote')
     raw_last_price=$(echo "${quote}" | jq -r '.CLastPrice')
     raw_ref_price=$(echo "${quote}" | jq -r '.CRefPrice')
     last_price=${raw_last_price%.*}
