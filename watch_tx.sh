@@ -82,5 +82,23 @@ function main () {
     done;
 }
 
+# ---- misc ----
+function show_version () {
+    echo "v0.2"
+}
+
+# parse param
+while getopts "v" opt; do
+    case ${opt} in
+        v)
+            show_version
+            exit 0
+            ;;
+        \?)
+            echo "Invalid option: $OPTARG" 1>&2
+            exit 1
+            ;;
+    esac
+done
 
 main
