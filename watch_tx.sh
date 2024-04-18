@@ -4,6 +4,7 @@
 # ELEC_PRICE_URL="https://www.taifex.com.tw/mCht/quotesApi/getQuotes?1688965637543&objId=12"
 REQUEST_INTERVAL=2
 
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 
 function pre_check () {
@@ -84,7 +85,8 @@ function main () {
 
 # ---- misc ----
 function show_version () {
-    echo "v0.2"
+    command -v sha256sum 1>/dev/null && hash_256=$(sha256sum "${SCRIPT_DIR}/$0" | awk '{print $1}')
+    echo "version: 0.2 ; SHA256: ${hash_256}"
 }
 
 # parse param
