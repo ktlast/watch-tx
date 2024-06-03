@@ -13,7 +13,7 @@ function pre_check () {
 
 function fake_info () {
     # generate fake info to let price keep a low profile; optional
-    printf "%s %d" "==> $(top -l 1 | grep -E '^CPU')" "${RANDOM}"
+    printf "%s" "==> $(top -l 1 | grep -E '^CPU')"
 }
 
 function _get_now_total_minutes () {
@@ -41,11 +41,53 @@ function is_night_market_open () {
     return 1
 }
 
+function _get_quote() {
+    # memo:
+    #   * 現貨："TXF-S"
+    #   - 2024-05 => "TXFF4-F"
+    local param symbol_id
+    param=$1
+    case ${param} in
+        "futures")
+            month_to_ascii_code=$(printf "%s" "\x$(( 40+$(date +%-m) ))")
+            month_code=$(printf "%b" "${month_to_ascii_code}")
+            symbol_id="TXF${month_code}4-F"
+            ;;
+        "actuals")
+            symbol_id="TXF-S"
+            ;;
+        *)
+            echo "unknown param: ${param}"
+            ;;
+    esac
+    curl -s -H 'Host: mis.taifex.com.tw' \
+        -H 'Content-Type: application/json;charset=UTF-8' \
+        -XPOST 'https://mis.taifex.com.tw/futures/api/getChartData1M' \
+        -d '{"SymbolID": "'"${symbol_id}"'"}' \
+        | jq -r '.RtData.Quote'
+    
+}
+
+function get_actuals_price () {
+    local quote
+    quote=$(_get_quote "actuals")
+    raw_last_price=$(echo "${quote}" | jq -r '.CLastPrice')
+    raw_ref_price=$(echo "${quote}" | jq -r '.CRefPrice')
+    raw_high_price=$(echo "${quote}" | jq -r '.CHighPrice')
+    raw_low_price=$(echo "${quote}" | jq -r '.CLowPrice')
+    last_price=${raw_last_price%.*}
+    ref_price=${raw_ref_price%.*}
+    high_price=${raw_high_price%.*}
+    low_price=${raw_low_price%.*}
+    price_diff=$((last_price - ref_price))
+    [[ ${price_diff} -gt 0 ]] && price_diff="+${price_diff}"  # add a plus sign if positive
+    printf "%s %s (%s, %s)" "${last_price}" "${price_diff}" "$((last_price-low_price))" "$((high_price-last_price))" 
+
+}
 
 function get_day_price () {
-    month_to_ascii_code=$(printf "%s" "\x$(( 41+$(date +%-m) ))")
-    month_code=$(printf "%b" "${month_to_ascii_code}")
-    quote=$(curl -s -H 'Host: mis.taifex.com.tw' -H 'Content-Type: application/json;charset=UTF-8' -XPOST 'https://mis.taifex.com.tw/futures/api/getChartData1M' -d '{"SymbolID": "TXF'"${month_code}"'4-F"}' | jq -r '.RtData.Quote')
+    local quote
+    quote=$(_get_quote "futures")
     raw_last_price=$(echo "${quote}" | jq -r '.CLastPrice')
     raw_ref_price=$(echo "${quote}" | jq -r '.CRefPrice')
     raw_high_price=$(echo "${quote}" | jq -r '.CHighPrice')
@@ -80,9 +122,11 @@ function get_price () {
 
 function main () {
     pre_check
+    printf "%s %-11s %-21s | %-21s %s" "date" "" "Futures" "Actuals" "trash";
+
     while true;
     do
-        printf "\r\n[%s] %s %s" "$(date '+%m/%d %T')" "$(get_price)" "$(fake_info)";
+        printf "\r\n[%s] %-21s | %-21s %s" "$(date '+%m/%d %T')" "$(get_price)" "$(get_actuals_price)" "$(fake_info)";
         sleep ${REQUEST_INTERVAL} ;
     done;
 }
