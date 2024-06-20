@@ -125,7 +125,7 @@ function show_string_on_market_close () {
 }
 
 function get_night_price () {
-    printf "%s" "not implemented Night Prices yet"
+    printf "%s" "-"
 }
 
 function get_price () {
@@ -138,13 +138,17 @@ function get_price () {
     fi
 }
 
+function print_override_ascii () {
+    ! is_day_market_open && printf '\e[1A\e[K'
+}
+
 function main () {
     pre_check
-    printf "%s %-11s %-21s | %-21s %s" "date" "" "Futures" "Actuals" "trash";
+    printf "%s %-11s %-21s | %-21s %s\n\n" "date" "" "Futures" "Actuals" "trash";
 
     while true;
     do
-        printf "\r\n[%s] %-21s | %-21s %s" "$(date '+%m/%d %T')" "$(get_price)" "$(get_actuals_price)" "$(fake_info)";
+        printf "%s[%s] %-21s | %-21s %s\n" "$(print_override_ascii)" "$(date '+%m/%d %T')" "$(get_price)" "$(get_actuals_price)" "$(fake_info)";
         sleep ${REQUEST_INTERVAL} ;
     done;
 }
@@ -152,7 +156,7 @@ function main () {
 # ---- misc ----
 function show_version () {
     command -v sha256sum 1>/dev/null && hash_256=$(sha256sum "${SCRIPT_DIR}/$0" | awk '{print $1}')
-    echo "version: 0.4 ; SHA256: ${hash_256}"
+    echo "version: 0.5 ; SHA256: ${hash_256}"
 }
 
 # parse param
