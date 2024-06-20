@@ -41,17 +41,35 @@ function is_night_market_open () {
     return 1
 }
 
+function _is_this_month_settled (){
+    # 檢查今天是不是已經結算本月期貨
+    local this_year this_month
+    this_year=$(date '+%Y')  # 2024
+    this_month=$(date '+%m')  # 6
+    day_of_first_day=$(date -j -f "%Y-%m-%d" "${this_year}-${this_month}-01" "+%w")  # 星期幾；週日是 0
+    settle_day=$(( (11 - day_of_first_day) % 7 + 14 ))  # 結算日的日期。 # note: 11 = 7 + 4 當月一號離下一個星期三還有幾天
+    if [[ $(date '+%-d') -gt ${settle_day} ]]; then
+        return 0  # true
+    else
+        return 1  # false
+    fi
+} 
+
 function _get_quote() {
     # memo:
     #   * 現貨："TXF-S"
-    #   - 2024-05 => "TXFF4-F"
-    local param symbol_id
+    #   - 2024 五月期貨 => "TXFF4-F"
+    #   - 2024 六月期貨 => "TXFG4-F"
+    local param symbol_id this_year
     param=$1
+    this_year=$(date '+%Y') 
     case ${param} in
         "futures")
-            month_to_ascii_code=$(printf "%s" "\x$(( 40+$(date +%-m) ))")
+            delta_month=0
+            _is_this_month_settled && delta_month=1  # 如果本月已結算就換下個月
+            month_to_ascii_code=$(printf "%s" "\x$(( 40 + $(date +%-m) + delta_month ))")
             month_code=$(printf "%b" "${month_to_ascii_code}")
-            symbol_id="TXF${month_code}4-F"
+            symbol_id="TXF${month_code}${this_year:0-1}-F"
             ;;
         "actuals")
             symbol_id="TXF-S"
