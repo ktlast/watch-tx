@@ -60,6 +60,9 @@ function _get_quote() {
     #   * 現貨："TXF-S"
     #   - 2024 五月期貨 => "TXFF4-F"
     #   - 2024 六月期貨 => "TXFG4-F"
+    #                       ^^^     : TXF，台指期
+    #                          ^    : month code，從 ascii code 65 (A) 開始
+    #                           ^   : 4 代表 2024 (目前推測)
     local param symbol_id this_year
     param=$1
     this_year=$(date '+%Y') 
@@ -67,7 +70,8 @@ function _get_quote() {
         "futures")
             delta_month=0
             _is_this_month_settled && delta_month=1  # 如果本月已結算就換下個月
-            month_to_ascii_code=$(printf "%s" "\x$(( 40 + $(date +%-m) + delta_month ))")
+            month_hex=$(printf '%x' "$((64 + $(date +%-m) + delta_month ))")
+            month_to_ascii_code=$(printf "%s" "\x${month_hex}")
             month_code=$(printf "%b" "${month_to_ascii_code}")
             symbol_id="TXF${month_code}${this_year:0-1}-F"
             ;;
@@ -78,6 +82,7 @@ function _get_quote() {
             echo "unknown param: ${param}"
             ;;
     esac
+
     curl -s -H 'Host: mis.taifex.com.tw' \
         -H 'Content-Type: application/json;charset=UTF-8' \
         -XPOST 'https://mis.taifex.com.tw/futures/api/getChartData1M' \
