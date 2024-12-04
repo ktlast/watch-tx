@@ -6,17 +6,29 @@ REQUEST_INTERVAL=2
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
+IS_CLEAR_SCREEN=no
 
-function pre_check () {
+
+pre_check () {
     ! which jq > /dev/null && echo "command [jq] not found. can try: [brew install jq] to install it." && exit 1
 }
 
-function fake_info () {
+fake_info () {
     # generate fake info to let price keep a low profile; optional
     printf "%s" "==> $(top -l 1 | grep -E '^CPU')"
 }
 
-function _get_now_total_minutes () {
+usage () {
+    echo "Usage: $0 [-r] [-v] [-h]"
+    echo "  -r: clear the screen on every request"
+    echo "  -v: show version"
+    echo "  -h: show this help"
+    echo
+    echo "Example:"
+    echo "  $0 -r"
+}
+
+_get_now_total_minutes () {
     # e.g.
     # 08:45 只算分鐘是 525
     # 13:45 只算分鐘是 825
@@ -27,35 +39,23 @@ function _get_now_total_minutes () {
     echo ${total_minutes}
 }
 
-function is_day_market_open () {
-    local now_minutes
-    now_minutes=$(_get_now_total_minutes)
-    [[ ${now_minutes} -ge 525 && ${now_minutes} -le 825 ]] && return 0
-    return 1
-}
 
-function is_night_market_open () {
-    local now_minutes
-    now_minutes=$(_get_now_total_minutes)
-    [[ ${now_minutes} -le 300 || ${now_minutes} -ge 900 ]] && return 0
-    return 1
-}
-
-function _is_this_month_settled (){
+_is_this_month_settled (){
     # 檢查今天是不是已經結算本月期貨
-    local this_year this_month
+    local this_year this_month weekday_of_1st date_of_first_wednesday settle_day
     this_year=$(date '+%Y')  # 2024
     this_month=$(date '+%m')  # 6
-    day_of_first_day=$(date -j -f "%Y-%m-%d" "${this_year}-${this_month}-01" "+%w")  # 星期幾；週日是 0
-    settle_day=$(( (11 - day_of_first_day) % 7 + 14 ))  # 結算日的日期。 # note: 11 = 7 + 4 當月一號離下一個星期三還有幾天
+    weekday_of_1st=$(date -j -f "%Y-%m-%d" "${this_year}-${this_month}-01" "+%w")  # 本月一號是星期幾；週日是 0
+    date_of_first_wednesday=$(( (11 - weekday_of_1st) % 7 ))
+    settle_day=$(( date_of_first_wednesday + 14 ))  # 結算日的日期
     if [[ $(date '+%-d') -gt ${settle_day} ]]; then
         return 0  # true
     else
         return 1  # false
     fi
-} 
+}
 
-function _get_quote() {
+_get_quote() {
     # memo:
     #   * 現貨："TXF-S"
     #   - 2024 五月期貨 => "TXFF4-F"
@@ -65,7 +65,7 @@ function _get_quote() {
     #                           ^   : 4 代表 2024 (目前推測)
     local param symbol_id this_year
     param=$1
-    this_year=$(date '+%Y') 
+    this_year=$(date '+%Y')
     case ${param} in
         "futures")
             delta_month=0
@@ -88,10 +88,10 @@ function _get_quote() {
         -XPOST 'https://mis.taifex.com.tw/futures/api/getChartData1M' \
         -d '{"SymbolID": "'"${symbol_id}"'"}' \
         | jq -r '.RtData.Quote'
-    
+
 }
 
-function get_actuals_price () {
+get_actuals_price () {
     local quote
     quote=$(_get_quote "actuals")
     raw_last_price=$(echo "${quote}" | jq -r '.CLastPrice')
@@ -104,11 +104,11 @@ function get_actuals_price () {
     low_price=${raw_low_price%.*}
     price_diff=$((last_price - ref_price))
     [[ ${price_diff} -gt 0 ]] && price_diff="+${price_diff}"  # add a plus sign if positive
-    printf "%s %s (%s, %s)" "${last_price}" "${price_diff}" "$((last_price-low_price))" "$((high_price-last_price))" 
+    printf "%s %s (%s, %s)" "${last_price}" "${price_diff}" "$((last_price-low_price))" "$((high_price-last_price))"
 
 }
 
-function get_day_price () {
+get_day_price () {
     local quote
     quote=$(_get_quote "futures")
     raw_last_price=$(echo "${quote}" | jq -r '.CLastPrice')
@@ -121,52 +121,71 @@ function get_day_price () {
     low_price=${raw_low_price%.*}
     price_diff=$((last_price - ref_price))
     [[ ${price_diff} -gt 0 ]] && price_diff="+${price_diff}"  # add a plus sign if positive
-    printf "%s %s (%s, %s)" "${last_price}" "${price_diff}" "$((last_price-low_price))" "$((high_price-last_price))" 
+    printf "%s %s (%s, %s)" "${last_price}" "${price_diff}" "$((last_price-low_price))" "$((high_price-last_price))"
 }
 
-function show_string_on_market_close () {
+show_string_on_market_close () {
     printf "%s" "-"
 
 }
 
-function get_night_price () {
+get_night_price () {
     printf "%s" "-"
 }
 
-function get_price () {
-    if is_day_market_open; then
-        get_day_price
-    elif is_night_market_open; then
-        get_night_price
-    else
-        show_string_on_market_close
-    fi
+get_symbol_price () {
+    local market_time="stopped"
+    local now_minutes
+    now_minutes=$(_get_now_total_minutes)
+    [[ ${now_minutes} -ge 525 && ${now_minutes} -le 825 ]] && market_time="day"
+    [[ ${now_minutes} -le 300 || ${now_minutes} -ge 900 ]] && market_time="night"
+
+    case ${market_time} in
+        "day")  # 日盤
+            get_day_price
+            ;;
+        "night")  # 夜盤
+            get_night_price
+            ;;
+        "stopped")  # 休市
+            show_string_on_market_close
+            ;;
+    esac
 }
 
-function print_override_ascii () {
-    ! is_day_market_open && printf '\e[1A\e[K'
+clear_screen () {
+    # 如果沒開盤就不洗板
+    [[ ${IS_CLEAR_SCREEN} == "yes" ]] && printf '\e[1A\e[K'
 }
 
-function main () {
+show_version () {
+    command -v sha256sum 1>/dev/null && hash_256=$(sha256sum "${SCRIPT_DIR}/$0" | awk '{print $1}')
+    echo "version: 0.6 ; SHA256: ${hash_256}"
+}
+
+main () {
     pre_check
+    show_version
+    echo
     printf "%s %-11s %-21s | %-21s %s\n\n" "date" "" "Futures" "Actuals" "trash";
 
     while true;
     do
-        printf "%s[%s] %-21s | %-21s %s\n" "$(print_override_ascii)" "$(date '+%m/%d %T')" "$(get_price)" "$(get_actuals_price)" "$(fake_info)";
+        printf "%s[%s] %-21s | %-21s %s\n" "$(clear_screen)" "$(date '+%m/%d %T')" "$(get_symbol_price)" "$(get_actuals_price)" "$(fake_info)";
         sleep ${REQUEST_INTERVAL} ;
     done;
 }
 
-# ---- misc ----
-function show_version () {
-    command -v sha256sum 1>/dev/null && hash_256=$(sha256sum "${SCRIPT_DIR}/$0" | awk '{print $1}')
-    echo "version: 0.5 ; SHA256: ${hash_256}"
-}
-
 # parse param
-while getopts "v" opt; do
+while getopts "hvr" opt; do
     case ${opt} in
+        h)
+            usage
+            exit 0
+            ;;
+        r)
+            IS_CLEAR_SCREEN=yes
+            ;;
         v)
             show_version
             exit 0
