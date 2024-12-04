@@ -141,7 +141,8 @@ get_symbol_price () {
     esac
 }
 
-print_override_ascii () {
+clear_screen () {
+    # 如果沒開盤就不洗板
     ! is_day_market_open && printf '\e[1A\e[K'
 }
 
@@ -151,7 +152,7 @@ main () {
 
     while true;
     do
-        printf "%s[%s] %-21s | %-21s %s\n" "$(print_override_ascii)" "$(date '+%m/%d %T')" "$(get_symbol_price)" "$(get_actuals_price)" "$(fake_info)";
+        printf "%s[%s] %-21s | %-21s %s\n" "$(clear_screen)" "$(date '+%m/%d %T')" "$(get_symbol_price)" "$(get_actuals_price)" "$(fake_info)";
         sleep ${REQUEST_INTERVAL} ;
     done;
 }
