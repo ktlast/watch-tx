@@ -146,8 +146,14 @@ clear_screen () {
     ! is_day_market_open && printf '\e[1A\e[K'
 }
 
+show_version () {
+    command -v sha256sum 1>/dev/null && hash_256=$(sha256sum "${SCRIPT_DIR}/$0" | awk '{print $1}')
+    echo "version: 0.5 ; SHA256: ${hash_256}"
+}
+
 main () {
     pre_check
+    show_version
     printf "%s %-11s %-21s | %-21s %s\n\n" "date" "" "Futures" "Actuals" "trash";
 
     while true;
@@ -155,12 +161,6 @@ main () {
         printf "%s[%s] %-21s | %-21s %s\n" "$(clear_screen)" "$(date '+%m/%d %T')" "$(get_symbol_price)" "$(get_actuals_price)" "$(fake_info)";
         sleep ${REQUEST_INTERVAL} ;
     done;
-}
-
-# ---- misc ----
-show_version () {
-    command -v sha256sum 1>/dev/null && hash_256=$(sha256sum "${SCRIPT_DIR}/$0" | awk '{print $1}')
-    echo "version: 0.5 ; SHA256: ${hash_256}"
 }
 
 # parse param
