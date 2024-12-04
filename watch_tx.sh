@@ -160,7 +160,7 @@ clear_screen () {
 
 show_version () {
     command -v sha256sum 1>/dev/null && hash_256=$(sha256sum "${SCRIPT_DIR}/$0" | awk '{print $1}')
-    echo "version: 0.5 ; SHA256: ${hash_256}"
+    echo "version: 0.6 ; SHA256: ${hash_256}"
 }
 
 main () {
