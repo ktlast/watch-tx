@@ -133,7 +133,7 @@ get_night_price () {
     printf "%s" "-"
 }
 
-get_price () {
+get_symbol_price () {
     if is_day_market_open; then
         get_day_price
     elif is_night_market_open; then
@@ -153,7 +153,7 @@ main () {
 
     while true;
     do
-        printf "%s[%s] %-21s | %-21s %s\n" "$(print_override_ascii)" "$(date '+%m/%d %T')" "$(get_price)" "$(get_actuals_price)" "$(fake_info)";
+        printf "%s[%s] %-21s | %-21s %s\n" "$(print_override_ascii)" "$(date '+%m/%d %T')" "$(get_symbol_price)" "$(get_actuals_price)" "$(fake_info)";
         sleep ${REQUEST_INTERVAL} ;
     done;
 }
