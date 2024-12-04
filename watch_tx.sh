@@ -30,11 +30,12 @@ _get_now_total_minutes () {
 
 _is_this_month_settled (){
     # 檢查今天是不是已經結算本月期貨
-    local this_year this_month
+    local this_year this_month weekday_of_1st date_of_first_wednesday settle_day
     this_year=$(date '+%Y')  # 2024
     this_month=$(date '+%m')  # 6
-    day_of_first_day=$(date -j -f "%Y-%m-%d" "${this_year}-${this_month}-01" "+%w")  # 星期幾；週日是 0
-    settle_day=$(( (11 - day_of_first_day) % 7 + 14 ))  # 結算日的日期。 # note: 11 = 7 + 4 當月一號離下一個星期三還有幾天
+    weekday_of_1st=$(date -j -f "%Y-%m-%d" "${this_year}-${this_month}-01" "+%w")  # 本月一號是星期幾；週日是 0
+    date_of_first_wednesday=$(( (11 - weekday_of_1st) % 7 ))
+    settle_day=$(( date_of_first_wednesday + 14 ))  # 結算日的日期
     if [[ $(date '+%-d') -gt ${settle_day} ]]; then
         return 0  # true
     else
