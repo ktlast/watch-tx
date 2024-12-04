@@ -18,6 +18,16 @@ fake_info () {
     printf "%s" "==> $(top -l 1 | grep -E '^CPU')"
 }
 
+usage () {
+    echo "Usage: $0 [-r] [-v] [-h]"
+    echo "  -r: clear the screen on every request"
+    echo "  -v: show version"
+    echo "  -h: show this help"
+    echo
+    echo "Example:"
+    echo "  $0 -r"
+}
+
 _get_now_total_minutes () {
     # e.g.
     # 08:45 只算分鐘是 525
@@ -156,6 +166,7 @@ show_version () {
 main () {
     pre_check
     show_version
+    echo
     printf "%s %-11s %-21s | %-21s %s\n\n" "date" "" "Futures" "Actuals" "trash";
 
     while true;
@@ -166,8 +177,12 @@ main () {
 }
 
 # parse param
-while getopts "vr" opt; do
+while getopts "hvr" opt; do
     case ${opt} in
+        h)
+            usage
+            exit 0
+            ;;
         r)
             IS_CLEAR_SCREEN=yes
             ;;
