@@ -27,19 +27,6 @@ _get_now_total_minutes () {
     echo ${total_minutes}
 }
 
-is_day_market_open () {
-    local now_minutes
-    now_minutes=$(_get_now_total_minutes)
-    [[ ${now_minutes} -ge 525 && ${now_minutes} -le 825 ]] && return 0
-    return 1
-}
-
-is_night_market_open () {
-    local now_minutes
-    now_minutes=$(_get_now_total_minutes)
-    [[ ${now_minutes} -le 300 || ${now_minutes} -ge 900 ]] && return 0
-    return 1
-}
 
 _is_this_month_settled (){
     # 檢查今天是不是已經結算本月期貨
@@ -134,13 +121,23 @@ get_night_price () {
 }
 
 get_symbol_price () {
-    if is_day_market_open; then
-        get_day_price
-    elif is_night_market_open; then
-        get_night_price
-    else
-        show_string_on_market_close
-    fi
+    local market_time="stopped"
+    local now_minutes
+    now_minutes=$(_get_now_total_minutes)
+    [[ ${now_minutes} -ge 525 && ${now_minutes} -le 825 ]] && market_time="day"
+    [[ ${now_minutes} -le 300 || ${now_minutes} -ge 900 ]] && market_time="night"
+
+    case ${market_time} in
+        "day")  # 日盤
+            get_day_price
+            ;;
+        "night")  # 夜盤
+            get_night_price
+            ;;
+        "stopped")  # 休市
+            show_string_on_market_close
+            ;;
+    esac
 }
 
 print_override_ascii () {
