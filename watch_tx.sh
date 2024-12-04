@@ -6,6 +6,8 @@ REQUEST_INTERVAL=2
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
+IS_CLEAR_SCREEN=no
+
 
 pre_check () {
     ! which jq > /dev/null && echo "command [jq] not found. can try: [brew install jq] to install it." && exit 1
@@ -143,7 +145,7 @@ get_symbol_price () {
 
 clear_screen () {
     # 如果沒開盤就不洗板
-    ! is_day_market_open && printf '\e[1A\e[K'
+    [[ ${IS_CLEAR_SCREEN} == "yes" ]] && printf '\e[1A\e[K'
 }
 
 show_version () {
@@ -164,8 +166,11 @@ main () {
 }
 
 # parse param
-while getopts "v" opt; do
+while getopts "vr" opt; do
     case ${opt} in
+        r)
+            IS_CLEAR_SCREEN=yes
+            ;;
         v)
             show_version
             exit 0
