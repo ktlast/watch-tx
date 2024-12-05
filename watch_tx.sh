@@ -6,7 +6,8 @@ REQUEST_INTERVAL=2
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
-IS_CLEAR_SCREEN=no
+IS_FORCED_CLEAR_SCREEN=""
+IS_CLEAR_SCREEN=auto
 
 
 pre_check () {
@@ -143,19 +144,26 @@ get_symbol_price () {
     case ${market_time} in
         "day")  # 日盤
             get_day_price
+            IS_CLEAR_SCREEN=no
             ;;
         "night")  # 夜盤
             get_night_price
+            IS_CLEAR_SCREEN=no
             ;;
         "stopped")  # 休市
             show_string_on_market_close
+            IS_CLEAR_SCREEN=yes
             ;;
     esac
 }
 
 clear_screen () {
     # 如果沒開盤就不洗板
-    [[ ${IS_CLEAR_SCREEN} == "yes" ]] && printf '\e[1A\e[K'
+    if [[ ${IS_FORCED_CLEAR_SCREEN} == "yes" ]]; then
+        printf '\e[1A\e[K'
+    else
+        [[ ${IS_CLEAR_SCREEN} == "yes" ]] && printf '\e[1A\e[K'
+    fi
 }
 
 show_version () {
@@ -184,7 +192,7 @@ while getopts "hvr" opt; do
             exit 0
             ;;
         r)
-            IS_CLEAR_SCREEN=yes
+            IS_FORCED_CLEAR_SCREEN=yes
             ;;
         v)
             show_version
