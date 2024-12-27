@@ -7,7 +7,8 @@ REQUEST_INTERVAL=2
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 IS_FORCED_CLEAR_SCREEN=""
-IS_CLEAR_SCREEN=auto
+FUTURES_CODE="TXF"  # 預設是大台
+ACTUALS_CODE="TXF-S" # 大盤代碼
 
 
 pre_check () {
@@ -20,13 +21,23 @@ fake_info () {
 }
 
 usage () {
-    echo "Usage: $0 [-r] [-v] [-h]"
-    echo "  -r: clear the screen on every request"
+    echo
+    echo "Usage: $0 [-r] [-v] [-h] [ -y | -z ]"
+    echo
+    echo "  -r: clear price lines on every request"
     echo "  -v: show version"
     echo "  -h: show this help"
     echo
+    echo
+    echo "Symbol Options:"
+    echo
+    echo "  -y: 小台 (MXF)"
+    echo "  -z: 微台 (TMF)"
+    echo
+    echo
     echo "Example:"
     echo "  $0 -r"
+    echo "  $0 -y"
 }
 
 _get_now_total_minutes () {
@@ -41,7 +52,28 @@ _get_now_total_minutes () {
 }
 
 
-_is_this_month_settled (){
+market_session.now () {
+    local market_session="closed"  # : [ "regular", "electronic", "closed" ]
+    local now_minutes
+    now_minutes=$(_get_now_total_minutes)
+    [[ ${now_minutes} -ge 525 && ${now_minutes} -le 825 ]] && market_session="regular"
+    [[ ${now_minutes} -le 300 || ${now_minutes} -ge 900 ]] && market_session="electronic"
+    echo ${market_session}
+}
+
+
+self.api_request () {
+    local result
+    result=$(curl -s -H 'Host: mis.taifex.com.tw' \
+        -H 'Content-Type: application/json;charset=UTF-8' \
+        -XPOST 'https://mis.taifex.com.tw/futures/api/getChartData1M' \
+        -d '{"SymbolID": "'"${1}"'"}')
+    # echo "api request: ${1}" >&2
+    echo "${result}" | jq -r '.RtData'
+}
+
+
+futures.is_this_month_settled (){
     # 檢查今天是不是已經結算本月期貨
     local this_year this_month weekday_of_1st date_of_first_wednesday settle_day
     this_year=$(date '+%Y')  # 2024
@@ -56,7 +88,26 @@ _is_this_month_settled (){
     fi
 }
 
-_get_quote() {
+futures.current_contract_code () {
+    # 產生當月期貨的時間代碼，例如 TXF = 台指期，F4 = 2024 五月
+    local month_hex month_to_ascii_code month_code this_year
+    this_year=$(date '+%Y')
+    this_month=$(date '+%m')
+    delta_month=0
+
+    if [[ ${this_month} -eq 12 ]]; then
+        month_hex=$(printf '%x' "76")  # 12 月
+        futures.is_this_month_settled && this_year=$((this_year + 1)) && month_hex=$(printf '%x' "65") # 已結算就換 1 月
+    else
+        futures.is_this_month_settled && delta_month=1  # 如果本月已結算就換下個月
+        month_hex=$(printf '%x' "$((64 + $(date +%-m) + delta_month ))")
+    fi
+    month_to_ascii_code=$(printf "%s" "\x${month_hex}")
+    month_code=$(printf "%b" "${month_to_ascii_code}")
+    printf "%s" "${month_code}${this_year:0-1}"
+}
+
+future.get_current_quote () {
     # memo:
     #   * 現貨："TXF-S"
     #   - 2024 五月期貨 => "TXFF4-F"
@@ -64,58 +115,38 @@ _get_quote() {
     #                       ^^^     : TXF，台指期
     #                          ^    : month code，從 ascii code 65 (A) 開始
     #                           ^   : 4 代表 2024 (目前推測)
-    local param symbol_id this_year
-    param=$1
-    this_year=$(date '+%Y')
-    case ${param} in
-        "futures")
-            delta_month=0
-            _is_this_month_settled && delta_month=1  # 如果本月已結算就換下個月
-            month_hex=$(printf '%x' "$((64 + $(date +%-m) + delta_month ))")
-            month_to_ascii_code=$(printf "%s" "\x${month_hex}")
-            month_code=$(printf "%b" "${month_to_ascii_code}")
-            symbol_id="TXF${month_code}${this_year:0-1}-F"
+    case $(market_session.now) in # : [ "regular", "electronic", "closed" ]
+        "regular")
+            # echo "日盤" >&2
+            symbol_id=${FUTURES_CODE}$(futures.current_contract_code)-F
             ;;
-        "actuals")
-            symbol_id="TXF-S"
+        "electronic")
+            # echo "夜盤" >&2
+            symbol_id=${FUTURES_CODE}$(futures.current_contract_code)-M
             ;;
-        *)
-            echo "unknown param: ${param}"
+        "closed")
+            # echo "未開盤" >&2
+            symbol_id=""
             ;;
     esac
-
-    curl -s -H 'Host: mis.taifex.com.tw' \
-        -H 'Content-Type: application/json;charset=UTF-8' \
-        -XPOST 'https://mis.taifex.com.tw/futures/api/getChartData1M' \
-        -d '{"SymbolID": "'"${symbol_id}"'"}' \
-        | jq -r '.RtData.Quote'
-
+    local quote
+    quote=$(self.api_request "${symbol_id}")
+    # echo "${quote}" | jq -r '.DispCName' >&2
+    echo "${quote}"
 }
 
-get_actuals_price () {
-    local quote
-    quote=$(_get_quote "actuals")
-    raw_last_price=$(echo "${quote}" | jq -r '.CLastPrice')
-    raw_ref_price=$(echo "${quote}" | jq -r '.CRefPrice')
-    raw_high_price=$(echo "${quote}" | jq -r '.CHighPrice')
-    raw_low_price=$(echo "${quote}" | jq -r '.CLowPrice')
-    last_price=${raw_last_price%.*}
-    ref_price=${raw_ref_price%.*}
-    high_price=${raw_high_price%.*}
-    low_price=${raw_low_price%.*}
-    price_diff=$((last_price - ref_price))
-    [[ ${price_diff} -gt 0 ]] && price_diff="+${price_diff}"  # add a plus sign if positive
-    printf "%s %s (%s, %s)" "${last_price}" "${price_diff}" "$((last_price-low_price))" "$((high_price-last_price))"
-
+actuals.get_current_quote () {
+    quote=$(self.api_request "${ACTUALS_CODE}")
+    echo "${quote}"
 }
 
-get_day_price () {
-    local quote
-    quote=$(_get_quote "futures")
-    raw_last_price=$(echo "${quote}" | jq -r '.CLastPrice')
-    raw_ref_price=$(echo "${quote}" | jq -r '.CRefPrice')
-    raw_high_price=$(echo "${quote}" | jq -r '.CHighPrice')
-    raw_low_price=$(echo "${quote}" | jq -r '.CLowPrice')
+
+self.get_price () {
+    local quote=$1
+    raw_last_price=$(echo "${quote}" | jq -r '.Quote.CLastPrice')
+    raw_ref_price=$(echo "${quote}" | jq -r '.Quote.CRefPrice')
+    raw_high_price=$(echo "${quote}" | jq -r '.Quote.CHighPrice')
+    raw_low_price=$(echo "${quote}" | jq -r '.Quote.CLowPrice')
     last_price=${raw_last_price%.*}
     ref_price=${raw_ref_price%.*}
     high_price=${raw_high_price%.*}
@@ -124,46 +155,16 @@ get_day_price () {
     [[ ${price_diff} -gt 0 ]] && price_diff="+${price_diff}"  # add a plus sign if positive
     printf "%s %s (%s, %s)" "${last_price}" "${price_diff}" "$((last_price-low_price))" "$((high_price-last_price))"
 }
+
 
 show_string_on_market_close () {
     printf "%s" "-"
 
 }
 
-get_night_price () {
-    printf "%s" "-"
-}
-
-get_symbol_price () {
-    local market_time="stopped"
-    local now_minutes
-    now_minutes=$(_get_now_total_minutes)
-    [[ ${now_minutes} -ge 525 && ${now_minutes} -le 825 ]] && market_time="day"
-    [[ ${now_minutes} -le 300 || ${now_minutes} -ge 900 ]] && market_time="night"
-
-    case ${market_time} in
-        "day")  # 日盤
-            get_day_price
-            IS_CLEAR_SCREEN=no
-            ;;
-        "night")  # 夜盤
-            get_night_price
-            IS_CLEAR_SCREEN=no
-            ;;
-        "stopped")  # 休市
-            show_string_on_market_close
-            IS_CLEAR_SCREEN=yes
-            ;;
-    esac
-}
 
 clear_screen () {
-    # 如果沒開盤就不洗板
-    if [[ ${IS_FORCED_CLEAR_SCREEN} == "yes" ]]; then
-        printf '\e[1A\e[K'
-    else
-        [[ ${IS_CLEAR_SCREEN} == "yes" ]] && printf '\e[1A\e[K'
-    fi
+    [[ ${IS_FORCED_CLEAR_SCREEN} == "yes" ]] && printf '\e[1A\e[K'
 }
 
 show_version () {
@@ -175,17 +176,19 @@ main () {
     pre_check
     show_version
     echo
+    echo "$(future.get_current_quote | jq -r '.DispCName') ($(market_session.now))" >&2
+    echo
     printf "%s %-11s %-21s | %-21s %s\n\n" "date" "" "Futures" "Actuals" "trash";
 
     while true;
     do
-        printf "%s[%s] %-21s | %-21s %s\n" "$(clear_screen)" "$(date '+%m/%d %T')" "$(get_symbol_price)" "$(get_actuals_price)" "$(fake_info)";
+        printf "%s[%s] %-21s | %-21s %s\n" "$(clear_screen)" "$(date '+%m/%d %T')" "$(self.get_price "$(future.get_current_quote)")" "$(self.get_price "$(actuals.get_current_quote)")" "$(fake_info)";
         sleep ${REQUEST_INTERVAL} ;
     done;
 }
 
 # parse param
-while getopts "hvr" opt; do
+while getopts "hvryz" opt; do
     case ${opt} in
         h)
             usage
@@ -197,6 +200,12 @@ while getopts "hvr" opt; do
         v)
             show_version
             exit 0
+            ;;
+        y)
+            FUTURES_CODE="MXF" # 小台
+            ;;
+        z)
+            FUTURES_CODE="TMF" # 微台
             ;;
         \?)
             echo "Invalid option: $OPTARG" 1>&2
