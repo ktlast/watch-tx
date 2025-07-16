@@ -10,6 +10,9 @@ IS_FORCED_CLEAR_SCREEN=""
 FUTURES_CODE="TXF"  # 預設是大台
 ACTUALS_CODE="TXF-S" # 大盤代碼
 
+TRUE_ON_EXIT=0  # return 0 代表 true
+FALSE_ON_EXIT=1 # return 1 代表 false
+
 
 pre_check () {
     ! which jq > /dev/null && echo "command [jq] not found. can try: [brew install jq] to install it." && exit 1
@@ -80,12 +83,24 @@ futures.is_this_month_settled (){
     this_month=$(date '+%m')  # 6
     weekday_of_1st=$(date -j -f "%Y-%m-%d" "${this_year}-${this_month}-01" "+%w")  # 本月一號是星期幾；週日是 0
     date_of_first_wednesday=$(( (11 - weekday_of_1st) % 7 ))
-    settle_day=$(( date_of_first_wednesday + 14 ))  # 結算日的日期
-    if [[ $(date '+%-d') -gt ${settle_day} ]]; then
-        return 0  # true
-    else
-        return 1  # false
+    settle_day=$(( date_of_first_wednesday + 14 ))  # 結算日第三個週三的日期
+
+    # 第三個週三之前
+    if [[ $(date '+%-d') -lt ${settle_day} ]]; then
+        return ${FALSE_ON_EXIT}
+
+    # 結算日當天
+    elif [[ $(date '+%-d') -eq ${settle_day} ]]; then
+        local now_minutes
+        now_minutes=$(_get_now_total_minutes)
+        if [[ ${now_minutes} -ge 525 && ${now_minutes} -le 825 ]]; then
+            return ${FALSE_ON_EXIT}  # 結算日當天收盤前，仍然是尚未結算的狀態
+        fi
+        return ${TRUE_ON_EXIT}
     fi
+
+    # 第三個週三之後
+    return ${TRUE_ON_EXIT}
 }
 
 futures.current_contract_code () {
