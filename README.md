@@ -3,16 +3,16 @@
 
 <br>
 
-## 支援 OS
+### 支援 OS
 - 目前只支援 `MacOS` 和 `Linux`
 
 <br>
 
-## 需要安裝的套件
+### 需要安裝的套件
 
 - `jq`
 
-### Linux
+#### Linux
 
 ```bash
 sudo apt-get install jq
@@ -20,7 +20,7 @@ sudo apt-get install jq
 
 <br>
 
-### MacOS
+#### MacOS
 
 ```bash
 brew install jq
@@ -28,7 +28,7 @@ brew install jq
 
 <br>
 
-## 使用方法
+### 使用方法
 
 ```bash
 curl -s https://raw.githubusercontent.com/ktlast/watch-tx/master/watch_tx.sh | bash
@@ -36,7 +36,7 @@ curl -s https://raw.githubusercontent.com/ktlast/watch-tx/master/watch_tx.sh | b
 
 <br>
 
-## Example Output
+### Example Output
 
 ```bash
 臺指期015 (regular)
@@ -60,3 +60,9 @@ Note
    # 突破前高時
    (X, 0)
    ```
+
+<br><br>
+
+## Golang 版本
+可用這版
+- https://github.com/leoheart0125/tx-disguise
