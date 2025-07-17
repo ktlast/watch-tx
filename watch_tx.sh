@@ -124,12 +124,13 @@ futures.current_contract_code () {
 
 future.get_current_quote () {
     # memo:
+    #   (以下部分是推測內容，畢竟期交所沒有公開開放 API 與文件)
     #   * 現貨："TXF-S"
     #   - 2024 五月期貨 => "TXFF4-F"
     #   - 2024 六月期貨 => "TXFG4-F"
-    #                       ^^^     : TXF，台指期
-    #                          ^    : month code，從 ascii code 65 (A) 開始
-    #                           ^   : 4 代表 2024 (目前推測)
+    #                      └┬┘│└────  4 代表 2024
+    #                       │ └─────  month code，從 ASCII code 65 (A) 開始
+    #                       └───────  TXF，台指期
     case $(market_session.now) in # : [ "regular", "electronic", "closed" ]
         "regular")
             # echo "日盤" >&2
