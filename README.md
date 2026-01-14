@@ -28,6 +28,11 @@ brew install jq
 
 <br>
 
+> [!TIP]
+> 可以參考這裡：[https://command-not-found.com/jq](https://command-not-found.com/jq)
+
+<br>
+
 ### 使用方法
 
 ```bash
@@ -47,22 +52,32 @@ date             Futures               | Actuals               trash
 [12/27 10:51:35] 23333 +7 (185, 32)    | 23282 +36 (78, 53)    ==> CPU usage: 7.60% user, 13.18% sys, 79.21% idle
 ```
 
-Note
+>[!NOTE]
+> - 小括號內的數字，左邊為現價與最低價的差距，右邊為最高價與現價的差距。
+>
+>  所以
+>
+>  ```bash
+>   # 破底時，會看到
+>   (0, X)
+>
+>   # 突破前高時
+>   (X, 0)
+>   ```
 
-- 小括號內的數字，左邊為現價與最低價的差距，右邊為最高價與現價的差距。
 
-  所以
-
-  ```bash
-   # 破底時，會看到
-   (0, X)
-
-   # 突破前高時
-   (X, 0)
-   ```
 
 <br><br>
 
 ## Golang 版本
 可用這版
 - https://github.com/leoheart0125/tx-disguise
+
+
+<br><br>
+
+# 免責聲明
+1. 盤中資料取自期交所網站：[https://www.taifex.com.tw/](https://www.taifex.com.tw/)
+2. 全力配合遵循期交所[使用條款](https://www.taifex.com.tw/cht/edu/userTerms)，如有違反會儘速改正。
+3. 腳本取得內容不保證正確、也不能作為任何交易決策參考
+4. 使用風險自負
