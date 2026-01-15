@@ -82,8 +82,8 @@ futures.is_this_month_settled (){
     this_year=$(date '+%Y')  # 2024
     this_month=$(date '+%m')  # 6
     weekday_of_1st=$(date -j -f "%Y-%m-%d" "${this_year}-${this_month}-01" "+%w")  # 本月一號是星期幾；週日是 0
-    date_of_first_wednesday=$(( (11 - weekday_of_1st) % 7 ))
-    settle_day=$(( date_of_first_wednesday + 14 ))  # 結算日第三個週三的日期
+    date_of_first_wednesday=$(( (10 - weekday_of_1st) % 7 ))
+    settle_day=$(( date_of_first_wednesday + 1 + 14 ))  # 結算日第三個週三的日期
 
     # 第三個週三之前
     if [[ $(date '+%-d') -lt ${settle_day} ]]; then
