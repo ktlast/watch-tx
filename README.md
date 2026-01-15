@@ -37,6 +37,9 @@ brew install jq
 
 ```bash
 curl -s https://raw.githubusercontent.com/ktlast/watch-tx/master/watch_tx.sh | bash
+
+# 如果保險起見想使用固定版本：
+curl -s https://raw.githubusercontent.com/ktlast/watch-tx/e3950294f1b98b18ef00b4ee56d692c219e76071/watch_tx.sh | bash
 ```
 
 <br>
