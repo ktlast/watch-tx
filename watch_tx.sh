@@ -3,9 +3,6 @@
 # DAY_PRICE_URL="https://www.taifex.com.tw/mCht/quotesApi/getQuotes?1688965637543&objId=2"
 # ELEC_PRICE_URL="https://www.taifex.com.tw/mCht/quotesApi/getQuotes?1688965637543&objId=12"
 REQUEST_INTERVAL=2
-
-SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-
 IS_FORCED_CLEAR_SCREEN=""
 FUTURES_CODE="TXF"  # 預設是大台
 ACTUALS_CODE="TXF-S" # 大盤代碼
@@ -183,14 +180,8 @@ clear_screen () {
     [[ ${IS_FORCED_CLEAR_SCREEN} == "yes" ]] && printf '\e[1A\e[K'
 }
 
-show_version () {
-    command -v sha256sum 1>/dev/null && hash_256=$(sha256sum "${SCRIPT_DIR}/$0" | awk '{print $1}')
-    echo "version: 0.7 ; SHA256: ${hash_256}"
-}
-
 main () {
     pre_check
-    show_version
     echo
     echo "$(future.get_current_quote | jq -r '.DispCName') ($(market_session.now))" >&2
     echo
@@ -204,7 +195,7 @@ main () {
 }
 
 # parse param
-while getopts "hvryz" opt; do
+while getopts "hryz" opt; do
     case ${opt} in
         h)
             usage
@@ -212,10 +203,6 @@ while getopts "hvryz" opt; do
             ;;
         r)
             IS_FORCED_CLEAR_SCREEN=yes
-            ;;
-        v)
-            show_version
-            exit 0
             ;;
         y)
             FUTURES_CODE="MXF" # 小台
